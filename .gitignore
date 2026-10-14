@@ -1,0 +1,5 @@
+
+# Task-only local check prerequisites and test cache
+.venv/
+__pycache__/
+.pytest_cache/

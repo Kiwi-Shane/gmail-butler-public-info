@@ -1,0 +1,55 @@
+import importlib.util
+from pathlib import Path
+import tempfile
+import unittest
+
+
+def checker():
+    spec = importlib.util.spec_from_file_location(
+        "site_checker", Path(__file__).parents[1] / "scripts/check_static_site.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class StaticSiteTests(unittest.TestCase):
+    def page(self, root, body):
+        (root / "index.html").write_text(
+            '<!doctype html><html lang="en"><head><title>Fixture</title></head>'
+            '<body><main><h1>Fixture</h1>' + body + '</main></body></html>', encoding="utf-8"
+        )
+
+    def test_relative_target_and_fragment_are_valid(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.page(root, '<a href="index.html#detail">Detail</a><p id="detail">Text</p>')
+            self.assertEqual(checker().check(root, ["index.html"]), [])
+
+    def test_missing_local_target_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.page(root, '<a href="missing.html">Missing</a>')
+            self.assertTrue(any("missing target" in e for e in checker().check(root, ["index.html"])))
+
+    def test_missing_fragment_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.page(root, '<a href="#missing">Missing</a>')
+            self.assertTrue(any("missing fragment" in e for e in checker().check(root, ["index.html"])))
+
+    def test_malformed_required_structure_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "index.html").write_text('<html><body>Incomplete</body></html>', encoding="utf-8")
+            self.assertTrue(any("required structure" in e for e in checker().check(root, ["index.html"])))
+
+    def test_escaping_target_fails_without_reading_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.page(root, '<a href="../outside.html">Outside</a>')
+            self.assertTrue(any("outside site" in e for e in checker().check(root, ["index.html"])))
+
+
+if __name__ == "__main__":
+    unittest.main()

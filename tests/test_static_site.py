@@ -44,6 +44,24 @@ class StaticSiteTests(unittest.TestCase):
             (root / "index.html").write_text('<html><body>Incomplete</body></html>', encoding="utf-8")
             self.assertTrue(any("required structure" in e for e in checker().check(root, ["index.html"])))
 
+    def test_crossed_required_tags_fail(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "index.html").write_text(
+                '<!doctype html><html lang="en"><head><title>Fixture</title></head>'
+                '<body><main><h1>Fixture</main></h1></body></html>',
+                encoding="utf-8",
+            )
+            errors = checker().check(root, ["index.html"])
+            self.assertTrue(any("required tag nesting" in e for e in errors), errors)
+
+    def test_balanced_required_structure_with_void_tags_passes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "pixel.svg").write_text("<svg></svg>", encoding="utf-8")
+            self.page(root, '<img src="pixel.svg" alt="fixture"><br>')
+            self.assertEqual(checker().check(root, ["index.html"]), [])
+
     def test_escaping_target_fails_without_reading_it(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

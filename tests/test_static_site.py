@@ -26,6 +26,39 @@ class StaticSiteTests(unittest.TestCase):
             self.page(root, '<a href="index.html#detail">Detail</a><p id="detail">Text</p>')
             self.assertEqual(checker().check(root, ["index.html"]), [])
 
+    def test_percent_decoded_path_and_fragment_with_dot_segments_are_valid(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "nested").mkdir()
+            (root / "Privacy Policy.html").write_text(
+                '<!doctype html><html lang="en"><head><title>Policy</title></head>'
+                '<body><main><h1>Policy</h1><p id="privacy policy">Text</p></main></body></html>',
+                encoding="utf-8",
+            )
+            self.page(
+                root,
+                '<a href="nested/../Privacy%20Policy.html#privacy%20policy">Privacy</a>',
+            )
+            self.assertEqual(checker().check(root, ["index.html"]), [])
+
+    def test_case_mismatched_filename_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.page(root, '<a href="privacy.html">Privacy</a>')
+            (root / "Privacy.html").write_text("<p>Privacy</p>", encoding="utf-8")
+            errors = checker().check(root, ["index.html"])
+            self.assertTrue(any("case mismatch" in error for error in errors), errors)
+
+    def test_case_mismatched_nested_directory_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            assets = root / "Assets"
+            assets.mkdir()
+            (assets / "logo.svg").write_text("<svg></svg>", encoding="utf-8")
+            self.page(root, '<img src="assets/logo.svg" alt="Logo">')
+            errors = checker().check(root, ["index.html"])
+            self.assertTrue(any("case mismatch" in error for error in errors), errors)
+
     def test_missing_local_target_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

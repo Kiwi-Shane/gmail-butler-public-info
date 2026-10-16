@@ -59,6 +59,45 @@ class Page(HTMLParser):
         self.required_tag_stack.pop()
 
 
+def _case_mismatch(root, source_path, requested_path):
+    requested = Path(requested_path)
+    if requested.is_absolute():
+        return None
+    current = source_path.parent
+    for component in requested.parts:
+        if component in ("", "."):
+            continue
+        current = current.resolve()
+        if not current.is_relative_to(root):
+            return None
+        if component == "..":
+            current = current.parent
+            continue
+        if not current.is_dir():
+            current = current / component
+            continue
+        try:
+            entries = list(current.iterdir())
+        except OSError:
+            return (component, None)
+        exact = next((entry for entry in entries if entry.name == component), None)
+        if exact is not None:
+            current = exact
+            continue
+        equivalents = [entry for entry in entries if entry.name.casefold() == component.casefold()]
+        if len(equivalents) == 1:
+            return (component, equivalents[0].name)
+        candidate = current / component
+        for entry in entries:
+            try:
+                if candidate.samefile(entry):
+                    return (component, entry.name)
+            except OSError:
+                continue
+        current = candidate
+    return None
+
+
 def check(root, pages):
     root = root.resolve()
     errors = []
@@ -83,9 +122,19 @@ def check(root, pages):
             parts = urlsplit(link)
             if parts.scheme or parts.netloc:
                 continue
-            target = (path.parent / unquote(parts.path)).resolve() if parts.path else path
+            requested_path = unquote(parts.path)
+            target = (path.parent / requested_path).resolve() if requested_path else path
             if not target.is_relative_to(root):
                 errors.append(f"{name}: target outside site: {link}")
+            elif mismatch := _case_mismatch(root, path, requested_path):
+                requested, actual = mismatch
+                if actual is None:
+                    errors.append(f"{name}: cannot verify target case: {link}")
+                else:
+                    errors.append(
+                        f"{name}: local target case mismatch: {link} "
+                        f"(requested {requested!r}, actual {actual!r})"
+                    )
             elif not target.is_file():
                 errors.append(f"{name}: missing target: {link}")
             elif parts.fragment and (target.suffix.lower() != ".html" or unquote(parts.fragment) not in read(target).ids):

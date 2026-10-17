@@ -1,0 +1,104 @@
+{
+  "schema_version": "repository-config-v2",
+  "repository_id": "gmail-butler-public-info",
+  "canonical_validation": {
+    "command": [
+      "python.exe",
+      "-s",
+      "scripts/check_static_site.py"
+    ],
+    "working_directory": "."
+  },
+  "local_execution": {
+    "default_workflow": "full",
+    "workflows": {
+      "full": {
+        "profile": {
+          "id": "raw-argv-v1",
+          "inputs": {}
+        },
+        "selectors": [
+          {
+            "id": "static-contract-tests",
+            "command": [
+              "pwsh.exe",
+              "-NoProfile",
+              "-Command",
+              "$ErrorActionPreference='Stop'; $user=Join-Path (Get-Location).Path '.venv/local-ci/user'; New-Item -ItemType Directory -Force -Path $user,(Join-Path $user 'appdata'),(Join-Path $user 'localappdata') | Out-Null; $env:HOME=$user; $env:USERPROFILE=$user; $env:APPDATA=Join-Path $user 'appdata'; $env:LOCALAPPDATA=Join-Path $user 'localappdata'; $env:PYTHONNOUSERSITE='1'; $env:PYTHONDONTWRITEBYTECODE='1'; $env:PIP_CONFIG_FILE='nul'; $env:UV_NO_CONFIG='1'; $env:UV_OFFLINE='1'; $env:npm_config_offline='true'; $env:npm_config_audit='false'; $env:HF_HUB_OFFLINE='1'; $env:TRANSFORMERS_OFFLINE='1'; $env:DO_NOT_TRACK='1'; & python.exe -s -m unittest discover -s tests -v; exit $LASTEXITCODE"
+            ],
+            "cwd": ".",
+            "timeout_seconds": 180,
+            "required": true,
+            "network_policy": "DISABLED",
+            "external_surface": "LOCAL",
+            "artifacts": [],
+            "environment": {},
+            "process_policy": {
+              "containment": "JOB_OBJECT_REQUIRED",
+              "kill_on_close": true
+            }
+          },
+          {
+            "id": "static-site",
+            "command": [
+              "pwsh.exe",
+              "-NoProfile",
+              "-Command",
+              "$ErrorActionPreference='Stop'; $user=Join-Path (Get-Location).Path '.venv/local-ci/user'; New-Item -ItemType Directory -Force -Path $user,(Join-Path $user 'appdata'),(Join-Path $user 'localappdata') | Out-Null; $env:HOME=$user; $env:USERPROFILE=$user; $env:APPDATA=Join-Path $user 'appdata'; $env:LOCALAPPDATA=Join-Path $user 'localappdata'; $env:PYTHONNOUSERSITE='1'; $env:PYTHONDONTWRITEBYTECODE='1'; $env:PIP_CONFIG_FILE='nul'; $env:UV_NO_CONFIG='1'; $env:UV_OFFLINE='1'; $env:npm_config_offline='true'; $env:npm_config_audit='false'; $env:HF_HUB_OFFLINE='1'; $env:TRANSFORMERS_OFFLINE='1'; $env:DO_NOT_TRACK='1'; & python.exe -s scripts/check_static_site.py; exit $LASTEXITCODE"
+            ],
+            "cwd": ".",
+            "timeout_seconds": 120,
+            "required": true,
+            "network_policy": "DISABLED",
+            "external_surface": "LOCAL",
+            "artifacts": [],
+            "environment": {},
+            "process_policy": {
+              "containment": "JOB_OBJECT_REQUIRED",
+              "kill_on_close": true
+            }
+          },
+          {
+            "id": "diff-check",
+            "command": [
+              "pwsh.exe",
+              "-NoProfile",
+              "-Command",
+              "$ErrorActionPreference='Stop'; $user=Join-Path (Get-Location).Path '.venv/local-ci/user'; New-Item -ItemType Directory -Force -Path $user,(Join-Path $user 'appdata'),(Join-Path $user 'localappdata') | Out-Null; $env:HOME=$user; $env:USERPROFILE=$user; $env:APPDATA=Join-Path $user 'appdata'; $env:LOCALAPPDATA=Join-Path $user 'localappdata'; $env:PYTHONNOUSERSITE='1'; $env:PYTHONDONTWRITEBYTECODE='1'; $env:PIP_CONFIG_FILE='nul'; $env:UV_NO_CONFIG='1'; $env:UV_OFFLINE='1'; $env:npm_config_offline='true'; $env:npm_config_audit='false'; $env:HF_HUB_OFFLINE='1'; $env:TRANSFORMERS_OFFLINE='1'; $env:DO_NOT_TRACK='1'; & git diff --check; exit $LASTEXITCODE"
+            ],
+            "cwd": ".",
+            "timeout_seconds": 120,
+            "required": true,
+            "network_policy": "DISABLED",
+            "external_surface": "LOCAL",
+            "artifacts": [],
+            "environment": {},
+            "process_policy": {
+              "containment": "JOB_OBJECT_REQUIRED",
+              "kill_on_close": true
+            }
+          }
+        ],
+        "dirty_state_policy": "REQUIRE_CLEAN"
+      }
+    }
+  },
+  "authority_rules": {
+    "execution_requires_task_authority": true
+  },
+  "evidence_rules": {
+    "retain_failed_and_unknown_attempts": true
+  },
+  "capability_markers": [
+    "windows",
+    "offline-local-scope"
+  ],
+  "protected_paths": [
+    ".git"
+  ],
+  "special_constraints": [
+    "Python standard library only; no framework or dependency bootstrap.",
+    "Required public page structure, local files and fragment targets are checked without requesting external links.",
+    "Hosting, publication, OAuth and live Gmail application qualification are separate and not executed."
+  ]
+}
